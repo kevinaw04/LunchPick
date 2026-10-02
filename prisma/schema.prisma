@@ -1,0 +1,131 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model LunchEvent {
+  id              String   @id @default(cuid())
+  name            String
+  eventDate       DateTime
+  headcount       Int
+  locationName    String
+  zipCode         String
+  radiusMiles     Float    @default(10)
+  budgetTotal     Float?
+  budgetPerPerson Float?
+  allowDelivery   Boolean  @default(true)
+  allowPickup     Boolean  @default(true)
+  allowCatering   Boolean  @default(false)
+  notes           String?
+  code            String   @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  participants        Participant[]
+  restaurantScores    RestaurantScore[]
+  selectedRestaurant  SelectedRestaurant?
+  leftoverDonation    LeftoverDonation?
+}
+
+model Participant {
+  id          String   @id @default(cuid())
+  eventId     String
+  name        String
+  isFlexible  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event       LunchEvent           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  preferences ParticipantPreference[]
+}
+
+model ParticipantPreference {
+  id            String         @id @default(cuid())
+  participantId String
+  type          PreferenceType
+  value         String
+  createdAt     DateTime       @default(now())
+
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+}
+
+enum PreferenceType {
+  DIETARY_RESTRICTION
+  NO_GO
+  DISLIKE
+  LIKE
+  FAVORITE
+}
+
+model Restaurant {
+  id              String   @id @default(cuid())
+  name            String
+  cuisine         String
+  cuisineTags     String   // JSON array of tags
+  distanceMiles   Float
+  avgCostPerPerson Float
+  deliveryAvailable Boolean @default(false)
+  pickupAvailable   Boolean @default(true)
+  cateringAvailable Boolean @default(false)
+  cateringMinPeople Int     @default(10)
+  openHours        String   // JSON: { open: "10:00", close: "22:00" }
+  dietaryOptions   String   // JSON array: ["vegetarian", "vegan", "gluten-free", etc.]
+  allergenInfo     String   // JSON object: { nuts: false, dairy: true, ... }
+  menuHighlights   String   // JSON array of strings
+  rating           Float    @default(4.0)
+  imageEmoji       String   @default("🍽️")
+  address          String
+  phone            String?
+
+  restaurantScores RestaurantScore[]
+}
+
+model RestaurantScore {
+  id                   String   @id @default(cuid())
+  eventId              String
+  restaurantId         String
+  totalScore           Float
+  dietaryScore         Float
+  preferenceScore      Float
+  budgetScore          Float
+  logisticsScore       Float
+  compatibleCount      Int
+  totalParticipants    Int
+  satisfactionPct      Float
+  explanation          String   // JSON
+  createdAt            DateTime @default(now())
+
+  event      LunchEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@unique([eventId, restaurantId])
+}
+
+model SelectedRestaurant {
+  id           String   @id @default(cuid())
+  eventId      String   @unique
+  restaurantId String
+  selectedAt   DateTime @default(now())
+  notes        String?
+
+  event LunchEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model LeftoverDonation {
+  id              String   @id @default(cuid())
+  eventId         String   @unique
+  hasLeftovers    Boolean  @default(false)
+  servingsCount   Int?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  event LunchEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
